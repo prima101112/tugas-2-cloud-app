@@ -4,6 +4,11 @@
 **Tanggal Dibuat:** 2026-05-30
 **Status:** 📝 Dalam Pengerjaan
 
+**Kelompok:**
+- Ade
+- Reza
+- Prima
+
 ---
 
 ## Deskripsi Tugas
