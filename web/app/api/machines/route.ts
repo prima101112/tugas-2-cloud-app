@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       name: c.Names[0]?.replace(/^\//, '') || '',
       status: c.State,
       image: c.Image,
-      ip: Object.values(c.NetworkSettings?.Networks || {})[0]?.IPAddress || '',
+      ip: (Object.values(c.NetworkSettings?.Networks || {})[0] as any)?.IPAddress || '',
       exposedPorts: c.Labels?.exposed ? JSON.parse(c.Labels.exposed || '[]') : [],
     }))
 

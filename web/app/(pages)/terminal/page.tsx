@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function TerminalPage() {
+function TerminalPageInner() {
   const searchParams = useSearchParams()
   const containerId = searchParams.get('id')
   const token = searchParams.get('token')
@@ -11,9 +11,6 @@ export default function TerminalPage() {
   const terminalRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [error, setError] = useState('')
-  const wsRef = useRef<WebSocket | null>(null)
-  const termRef = useRef<any>(null)
-  const fitAddonRef = useRef<any>(null)
 
   useEffect(() => {
     if (!containerId || !token) {
@@ -38,10 +35,8 @@ export default function TerminalPage() {
         fontFamily: 'monospace',
         theme: { background: '#1e1e1e', foreground: '#d4d4d4' },
       })
-      termRef.current = term
 
       fitAddon = new FitAddon()
-      fitAddonRef.current = fitAddon
       term.loadAddon(fitAddon)
 
       if (terminalRef.current) {
@@ -52,7 +47,6 @@ export default function TerminalPage() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const wsUrl = `${protocol}//${window.location.host}/ws/ssh/${containerId}?token=${token}`
       ws = new WebSocket(wsUrl)
-      wsRef.current = ws
 
       ws.onopen = () => {
         setStatus('connected')
@@ -126,7 +120,7 @@ export default function TerminalPage() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '8px 16px', background: '#333', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>Terminal: {containerId?.slice(0, 12)}...</span>
+        <span>Terminal: {containerId?.slice(0, 12) || '---'}...</span>
         <span style={{
           padding: '4px 8px',
           borderRadius: 4,
@@ -138,5 +132,17 @@ export default function TerminalPage() {
       </div>
       <div ref={terminalRef} style={{ flex: 1, background: '#1e1e1e' }} />
     </div>
+  )
+}
+
+export default function TerminalPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e1e1e', color: '#fff' }}>
+        Loading terminal...
+      </div>
+    }>
+      <TerminalPageInner />
+    </Suspense>
   )
 }
