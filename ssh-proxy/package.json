@@ -1,0 +1,13 @@
+{
+  "name": "ssh-proxy",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "dockerode": "^4.0.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

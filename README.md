@@ -1,8 +1,9 @@
-# Tugas 2: Aplikasi Cloud / VM / Container
+# Mini Cloud Platform
 
-**Mata Kuliah:** Komputasi Awan dan Keamanan Siber
-**Tanggal Dibuat:** 2026-05-30
-**Status:** 📝 Dalam Pengerjaan
+**Mata Kuliah:** Komputasi Awan dan Keamanan Siber  
+**Tanggal:** 2026-06-06  
+**Deploy Target:** Alibaba Cloud ECS  
+**Stack:** Next.js + Traefik (binary) + Docker Engine + Node.js SSH Proxy
 
 **Kelompok:**
 - Ade
@@ -11,231 +12,274 @@
 
 ---
 
-## Deskripsi Tugas
-
-Membuat aplikasi yang memanfaatkan layanan cloud atau membangun VM/Container sendiri.
-
----
-
-## Pilihan Proyek
-
-### Opsi 1: Aplikasi dengan Layanan Cloud (PaaS/SaaS/FaaS)
-
-**Contoh Layanan yang Bisa Dipakai:**
-- **AWS:** Lambda, S3, DynamoDB, EC2, ECS
-- **Google Cloud:** Cloud Functions, Cloud Run, Firestore, App Engine
-- **Azure:** Functions, Blob Storage, Cosmos DB
-- **Vercel/Netlify:** Static hosting + Serverless Functions
-- **Supabase/Firebase:** BaaS (Backend as a Service)
-
-**Ide Proyek:**
-1. **Serverless API:** REST API dengan AWS Lambda + API Gateway
-2. **File Upload App:** Upload/download file ke Cloud Storage (S3/GCS)
-3. **Real-time Chat:** WebSocket + Firestore/Realtime Database
-4. **Image Processing:** Upload gambar → trigger Lambda → resize → save
-5. **CRUD App:** Fullstack dengan database cloud (DynamoDB/Firestore)
-6. **Static Website:** JAMstack dengan CDN (Vercel/Netlify)
-
----
-
-### Opsi 2: Membangun VM Sendiri
-
-**Tools:**
-- **VirtualBox / VMware** — VM lokal
-- **Vagrant** — VM automation
-- **Proxmox** — Hypervisor open-source
-- **QEMU/KVM** — Linux virtualization
-
-**Ide Proyek:**
-1. **Web Server VM:** Setup Ubuntu VM → install Nginx → deploy web app
-2. **Multi-VM Network:** 3 VM (Web + DB + Cache) dengan private network
-3. **Load Balancer:** 2 VM web + 1 VM HAProxy load balancer
-4. **CI/CD Runner:** VM dengan GitLab CI/GitHub Actions runner
-5. **Database Cluster:** 3 VM dengan MySQL/MongoDB replication
-
----
-
-### Opsi 3: Membangun Container Sendiri
-
-**Tools:**
-- **Docker** — Container engine
-- **Docker Compose** — Multi-container orchestration
-- **Kubernetes (K8s)** — Container orchestration
-- **Podman** — Docker alternative (rootless)
-- **LXC/LXD** — System containers
-
-**Ide Proyek:**
-1. **Dockerized Web App:** Containerize aplikasi + database + reverse proxy
-2. **Microservices:** 3-4 container yang saling berkomunikasi
-3. **Kubernetes Deployment:** Deploy ke Minikube/K3s/Kind
-4. **CI/CD Pipeline:** Build → Test → Push image → Deploy container
-5. **Monitoring Stack:** Prometheus + Grafana + Node Exporter (semua container)
-
----
-
-## Deliverables (Yang Harus Dikumpulkan)
-
-### 1. Source Code
-- Repository Git dengan struktur rapi
-- README.md yang menjelaskan cara run
-- Konfigurasi (Dockerfile, docker-compose.yml, terraform, dsb)
-
-### 2. Dokumentasi Teknis
-- **Arsitektur:** Diagram arsitektur sistem
-- **Tech Stack:** Daftar teknologi yang dipakai
-- **Cara Kerja:** Penjelasan alur aplikasi
-- **Screenshot:** Bukti aplikasi berjalan
-
-### 3. Demo/Laporan
-- **Video Demo:** (opsional, tapi recommended)
-- **Laporan PDF:** Penjelasan lengkap + screenshot
-- **Live Demo:** Aplikasi yang bisa diakses (kalau deploy ke cloud)
-
----
-
-## Format Laporan
+## Arsitektur
 
 ```
-Cover
-├── Judul Proyek
-├── Nama / NIM
-├── Mata Kuliah
-└── Tanggal
+Internet :80
+    |
+    v
+Traefik  <-- binary di host, bukan container
+    |-- /ws/*  -> SSH Proxy  (host:3000)
+    +-- /*     -> Next.js    (host:3001)
+                    |-- app/api/auth/*       JWT login/logout
+                    |-- app/api/machines/*   CRUD container
+                    |-- app/api/expose/*     dynamic Traefik routing
+                    |-- app/api/stats/*      CPU & RAM
+                    +-- app/(pages)/         dashboard, terminal
 
-Daftar Isi
+Docker Engine (host)
+    +-- net-alice  ->  alice-server-1, alice-server-2
+    +-- net-bob    ->  bob-server-1
+    +-- net-charlie -> charlie-server-1
+```
 
-1. Pendahuluan
-   1.1 Latar Belakang
-   1.2 Tujuan
-   1.3 Ruang Lingkup
+**Docker murni cuma buat user containers.** Semua infra (Traefik, Next.js, SSH Proxy) jalan sebagai host process.
 
-2. Landasan Teori
-   2.1 Cloud Computing (IaaS/PaaS/SaaS)
-   2.2 Virtualisasi / Containerisasi
-   2.3 Teknologi yang Digunakan
+---
 
-3. Analisis dan Perancangan
-   3.1 Analisis Kebutuhan
-   3.2 Arsitektur Sistem
-   3.3 Desain Database (jika ada)
+## Tech Stack
 
-4. Implementasi
-   4.1 Langkah-langkah Pengerjaan
-   4.2 Konfigurasi
-   4.3 Screenshot Proses
+| Layer | Tech | Jalan di |
+|---|---|---|
+| Reverse proxy | Traefik (binary) | ECS host :80 |
+| Frontend + API | Next.js 14 App Router | ECS host :3001 |
+| SSH Proxy | Node.js + ws + dockerode | ECS host :3000 |
+| Container engine | Docker Engine | ECS host |
+| User containers | ubuntu:22.04 / debian:12 / alpine | Docker (host) |
 
-5. Hasil dan Pengujian
-   5.1 Screenshot Aplikasi Berjalan
-   5.2 Pengujian Fungsionalitas
-   5.3 Kendala dan Solusi
+---
 
-6. Kesimpulan dan Saran
+## Project Structure
 
-Daftar Pustaka
-Lampiran
+```
+.
+├── traefik.yml                  <- Traefik static config
+├── traefik-dynamic/             <- di-watch Traefik (auto-reload)
+│   └── user-routes.yml          <- ditulis Next.js waktu user expose port
+├── ssh-proxy/
+│   ├── server.js                <- WebSocket SSH proxy
+│   └── package.json
+└── web/                         <- Next.js app
+    ├── package.json
+    ├── tsconfig.json
+    ├── next.config.js
+    ├── lib/
+    │   ├── auth.ts              <- JWT + hardcoded users
+    │   └── docker.ts            <- dockerode helpers
+    └── app/
+        ├── layout.tsx           <- Root layout (html + xterm css)
+        ├── api/
+        │   ├── route.ts         <- Health check
+        │   ├── auth/
+        │   │   ├── login/route.ts
+        │   │   └── logout/route.ts
+        │   ├── machines/
+        │   │   ├── route.ts           <- GET list, POST create
+        │   │   └── [id]/
+        │   │       ├── route.ts       <- DELETE
+        │   │       ├── start/route.ts
+        │   │       ├── stop/route.ts
+        │   │       ├── logs/route.ts
+        │   │       └── stats/route.ts
+        │   └── expose/
+        │       └── route.ts           <- POST expose, DELETE unexpose
+        └── (pages)/
+            ├── layout.tsx
+            ├── page.tsx               <- Login + Dashboard
+            └── terminal/
+                └── page.tsx           <- xterm.js terminal
 ```
 
 ---
 
-## Contoh Project: Docker Multi-Container App
+## Setup (ECS)
 
-### Arsitektur
-```
-┌─────────────────────────────────────────┐
-│            Docker Network               │
-│  ┌──────────┐      ┌──────────────┐    │
-│  │  Nginx   │──────→│   Web App    │    │
-│  │ (Proxy)  │      │   (Node.js)  │    │
-│  └──────────┘      └──────────────┘    │
-│       │                                 │
-│       └──────────────────┐             │
-│                          ▼             │
-│               ┌──────────────────┐     │
-│               │   PostgreSQL     │     │
-│               │   (Database)     │     │
-│               └──────────────────┘     │
-└─────────────────────────────────────────┘
-```
+### 1. Security Group
 
-### File Structure
-```
-tugas2-cloud-app/
-├── docker-compose.yml
-├── nginx/
-│   ├── Dockerfile
-│   └── nginx.conf
-├── web/
-│   ├── Dockerfile
-│   ├── package.json
-│   └── src/
-└── database/
-    └── init.sql
+| Port | Source | Untuk |
+|---|---|---|
+| 80 | 0.0.0.0/0 | Semua traffic (Traefik) |
+| 22 | IP kamu | SSH admin ke ECS |
+
+### 2. Install Dependencies
+
+```bash
+# Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER && newgrp docker
+
+# Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install nodejs -y
+npm i -g pnpm
+
+# Traefik binary (no container!)
+wget https://github.com/traefik/traefik/releases/download/v3.0.0/traefik_v3.0.0_linux_amd64.tar.gz
+tar -xzf traefik_v3.0.0_linux_amd64.tar.gz
+sudo mv traefik /usr/local/bin/
+
+# Clone & install
+git clone <repo> mini-cloud && cd mini-cloud
+cd web && pnpm install && cd ..
+cd ssh-proxy && npm install && cd ..
+mkdir -p traefik-dynamic
 ```
 
-### docker-compose.yml
+### 3. Jalankan Services
+
+Development mode:
+```bash
+# Terminal 1: Traefik
+traefik --configFile=traefik.yml
+
+# Terminal 2: Next.js
+cd web && pnpm dev --port 3001
+
+# Terminal 3: SSH Proxy
+node ssh-proxy/server.js
+```
+
+Production mode (dengan PM2):
+```bash
+npm i -g pm2
+
+pm2 start "traefik --configFile=traefik.yml" --name traefik
+pm2 start "node ssh-proxy/server.js" --name ssh-proxy
+cd web && pnpm build && cd ..
+pm2 start "pnpm start --port 3001" --name nextjs --cwd ./web
+
+pm2 save
+pm2 startup   # auto-start on reboot
+```
+
+---
+
+## Fitur
+
+### Auth
+- Hardcoded users: `admin/1234`, `alice/1234`, `bob/1234`
+- JWT token disimpan di localStorage
+- Session tracking in-memory
+
+### Dashboard
+- Login form → dashboard
+- Tabel mesin: nama, image, status, IP, actions
+- Tombol: **Start** | **Stop** | **Delete** | **Terminal** | **Expose Port**
+- Modal Create: nama + image select
+- Modal Expose Port: input port → tampilkan URL
+- Panel logs (collapsible, fetch on demand)
+- Auto-refresh status tiap 5 detik
+
+### Terminal (Web SSH)
+- xterm.js + FitAddon
+- WebSocket ke `/ws/ssh/<container_id>?token=<jwt>`
+- **Bukan SSH protocol asli** — pakai `docker exec` PTY langsung
+- Auto-resize terminal
+
+### Container CRUD API
+- `GET /api/machines` — list container user (filter by Docker label `owner`)
+- `POST /api/machines` — create container, auto-create network `net-<user>`
+- `DELETE /api/machines/[id]` — hapus container + cleanup routes
+- `POST /api/machines/[id]/start|stop` — start/stop container
+- `GET /api/machines/[id]/logs` — tail 50 logs
+- `GET /api/machines/[id]/stats` — CPU % dan memory MB
+
+### Expose Port
+- `POST /api/expose` — tulis route ke `traefik-dynamic/user-routes.yml`
+- Traefik auto-reload via file watcher
+- URL format: `/user/<username>/<machine>/<port>/`
+
+---
+
+## Networking Isolation
+
+```
+ECS Host
+|-- Traefik      :80   (host process)
+|-- Next.js      :3001 (host process)
+|-- SSH Proxy    :3000 (host process)
+|
++-- Docker Engine
+    |-- net-alice  (bridge) → alice-server-1, alice-server-2
+    +-- net-bob    (bridge) → bob-server-1
+
+alice-server-1 TIDAK BISA reach bob-server-1  <- isolasi tenant
+Traefik bisa reach semua via IP container      <- hanya infra
+```
+
+---
+
+## Demo Flow
+
+1. Buka `http://<ecs-ip>` → login sebagai `alice`
+2. Create machine → `ubuntu:22.04`, nama `my-server`
+3. Klik **Terminal** → xterm.js terminal di tab baru
+4. Di terminal: `python3 -m http.server 8080`
+5. Balik dashboard → **Expose Port** → input `8080`
+6. Klik URL yang muncul → app alice jalan di `/user/alice/my-server/8080/`
+7. Login sebagai `bob` → bob gak lihat mesin alice (tenant isolation)
+8. `docker ps` di ECS → container beneran ada
+
+---
+
+## Traefik Config
+
+**Static (`traefik.yml`):**
 ```yaml
-version: '3.8'
-
-services:
-  nginx:
-    build: ./nginx
-    ports:
-      - "80:80"
-    depends_on:
-      - web
-
+entryPoints:
   web:
-    build: ./web
-    environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-    depends_on:
-      - db
+    address: ":80"
 
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: myapp
-    volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - postgres_data:/var/lib/postgresql/data
+providers:
+  file:
+    directory: ./traefik-dynamic
+    watch: true
 
-volumes:
-  postgres_data:
+http:
+  routers:
+    ws-router:
+      rule: "PathPrefix(`/ws`)"
+      service: ssh-svc
+      entryPoints: [web]
+      priority: 20
+    nextjs-router:
+      rule: "PathPrefix(`/`)"
+      service: nextjs-svc
+      entryPoints: [web]
+      priority: 1
+
+  services:
+    ssh-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3000"
+    nextjs-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3001"
+```
+
+**Dynamic (`traefik-dynamic/user-routes.yml`) — di-generate otomatis:**
+```yaml
+http:
+  routers:
+    user-alice-myserver-8080:
+      rule: "PathPrefix(`/user/alice/my-server/8080`)"
+      service: user-alice-myserver-8080-svc
+      priority: 20
+  services:
+    user-alice-myserver-8080-svc:
+      loadBalancer:
+        servers:
+          - url: "http://172.20.0.2:8080"
 ```
 
 ---
 
-## Tips
+## Catatan Penting
 
-1. **Mulai Kecil:** Jangan over-engineering. Fokus pada core functionality.
-2. **Dokumentasi:** Screenshot setiap langkah penting.
-3. **Git:** Commit sering dengan pesan yang jelas.
-4. **Testing:** Pastikan aplikasi bisa di-reproduce di mesin lain.
-5. **Cloud Free Tier:** Manfaatkan AWS Free Tier, GCP Free Tier, Vercel Hobby.
-
----
-
-## Referensi
-
-- [Docker Documentation](https://docs.docker.com/)
-- [Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
-- [AWS Free Tier](https://aws.amazon.com/free/)
-- [Google Cloud Free Tier](https://cloud.google.com/free)
-- [Vercel Documentation](https://vercel.com/docs)
-- [Docker Compose Overview](https://docs.docker.com/compose/)
-
----
-
-## Progress Tracker
-
-- [ ] Menentukan topik/judul proyek
-- [ ] Menentukan tech stack
-- [ ] Setup environment development
-- [ ] Implementasi core features
-- [ ] Testing
-- [ ] Dokumentasi
-- [ ] Deployment (jika ke cloud)
-- [ ] Laporan/Presentasi
+- **NO Docker containers untuk infra.** Traefik, Next.js, SSH Proxy semua jalan sebagai host process.
+- **NO SSH protocol asli** di SSH Proxy. Pakai `docker exec` PTY langsung via dockerode.
+- **NO database.** Auth in-memory dengan hardcoded users.
+- Traefik binary wajib ada di `$PATH` atau dijalankan dengan path absolut.
+- Pastikan user ECS ada di group `docker` agar dockerode bisa akses Docker socket.
