@@ -536,16 +536,46 @@ export default function HomePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-dark-400 mb-2">Image</label>
-                <select
-                  value={createImage}
-                  onChange={(e) => setCreateImage(e.target.value)}
-                  className="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-xl text-white focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all appearance-none"
-                >
-                  <option value="ubuntu:22.04">ubuntu:22.04</option>
-                  <option value="debian:12">debian:12</option>
-                  <option value="alpine">alpine</option>
-                </select>
+                <label className="block text-sm font-medium text-dark-400 mb-2">Operating System</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { value: 'ubuntu:22.04', label: 'Ubuntu 22.04 LTS', desc: 'Full-featured, apt package manager, systemd', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+                    { value: 'debian:12', label: 'Debian 12 (Bookworm)', desc: 'Stable, apt package manager, minimal', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+                    { value: 'alpine', label: 'Alpine Linux (latest)', desc: 'Ultra-lightweight, apk package manager, musl libc', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+                  ].map((img) => (
+                    <label
+                      key={img.value}
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        createImage === img.value
+                          ? `${img.bg} border-brand-500 ring-1 ring-brand-500/30`
+                          : 'border-dark-700 hover:border-dark-600 bg-dark-800/50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="image"
+                        value={img.value}
+                        checked={createImage === img.value}
+                        onChange={(e) => setCreateImage(e.target.value)}
+                        className="sr-only"
+                      />
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        createImage === img.value ? 'border-brand-500' : 'border-dark-600'
+                      }`}>
+                        {createImage === img.value && <div className="w-2 h-2 rounded-full bg-brand-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-semibold ${img.color}`}>{img.label}</span>
+                          {createImage === img.value && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 bg-brand-500/20 text-brand-400 rounded">Selected</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-dark-500 mt-0.5">{img.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button
