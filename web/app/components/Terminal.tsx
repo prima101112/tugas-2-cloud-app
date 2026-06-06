@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { AlertCircle } from 'lucide-react'
 
 interface TerminalProps {
   containerId: string
@@ -35,20 +36,28 @@ export default function Terminal({ containerId, token }: TerminalProps) {
         term = new Terminal({
           cursorBlink: true,
           fontSize: 13,
-          fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+          fontFamily: 'var(--font-mono)',
           theme: {
-            background: '#0d1117',
-            foreground: '#e6edf3',
-            cursor: '#e6edf3',
-            selectionBackground: '#264f78',
-            black: '#484f58',
-            red: '#ff7b72',
-            green: '#7ee787',
-            yellow: '#ffa657',
-            blue: '#79c0ff',
-            magenta: '#d2a8ff',
-            cyan: '#a5d6ff',
-            white: '#e6edf3',
+            background: '#020617',
+            foreground: '#e2e8f0',
+            cursor: '#e2e8f0',
+            selectionBackground: '#1e3a5f',
+            black: '#1e293b',
+            red: '#f87171',
+            green: '#4ade80',
+            yellow: '#fbbf24',
+            blue: '#60a5fa',
+            magenta: '#c084fc',
+            cyan: '#22d3ee',
+            white: '#e2e8f0',
+            brightBlack: '#334155',
+            brightRed: '#fca5a5',
+            brightGreen: '#86efac',
+            brightYellow: '#fde047',
+            brightBlue: '#93c5fd',
+            brightMagenta: '#d8b4fe',
+            brightCyan: '#67e8f9',
+            brightWhite: '#f8fafc',
           },
           scrollback: 5000,
         })
@@ -100,7 +109,7 @@ export default function Terminal({ containerId, token }: TerminalProps) {
 
         ws.onerror = () => {
           if (closed) return
-          term.writeln('\r\n\x1b[31m[WebSocket error]\x1b[0m')
+          term.writeln('\r\n\x1b[31m[WebSocket error — check server logs]\x1b[0m')
         }
 
         term.onData((data: string) => {
@@ -138,8 +147,9 @@ export default function Terminal({ containerId, token }: TerminalProps) {
 
   if (loadError) {
     return (
-      <div style={{ color: '#f85149', padding: 20, textAlign: 'center' }}>
-        ⚠️ {loadError}
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-accent-red">
+        <AlertCircle className="w-8 h-8" />
+        <p className="text-sm">{loadError}</p>
       </div>
     )
   }
@@ -147,7 +157,7 @@ export default function Terminal({ containerId, token }: TerminalProps) {
   return (
     <div
       ref={terminalRef}
-      style={{ width: '100%', height: '100%' }}
+      className="w-full h-full rounded-xl overflow-hidden"
     />
   )
 }

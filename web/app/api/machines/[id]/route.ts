@@ -7,15 +7,17 @@ const ROUTES_FILE = process.cwd() + '/../traefik-dynamic/user-routes.yml'
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = getAuthUser(req)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const { id } = await params
+
   try {
-    const owner = await getContainerOwner(params.id)
+    const owner = await getContainerOwner(id)
     if (owner !== user.username) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -33,7 +35,6 @@ export async function DELETE(
         const trimmed = line.trimStart()
         const indent = line.length - trimmed.length
 
-        // Detect top-level keys under http.routers or http.services (indent 4)
         if (indent === 4 && trimmed.match(/^[\w-]+:/)) {
           currentKey = trimmed.replace(':', '')
           skipBlock = currentKey.startsWith(prefix)
@@ -52,7 +53,7 @@ export async function DELETE(
       // File may not exist
     }
 
-    const container = docker.getContainer(params.id)
+    const container = docker.getContainer(id)
     await container.remove({ force: true })
 
     return NextResponse.json({ success: true })

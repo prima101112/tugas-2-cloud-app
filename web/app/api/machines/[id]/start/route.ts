@@ -4,20 +4,22 @@ import { docker, getContainerOwner } from '@/lib/docker'
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = getAuthUser(req)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const { id } = await params
+
   try {
-    const owner = await getContainerOwner(params.id)
+    const owner = await getContainerOwner(id)
     if (owner !== user.username) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const container = docker.getContainer(params.id)
+    const container = docker.getContainer(id)
     await container.start()
     return NextResponse.json({ success: true })
   } catch (err: any) {
