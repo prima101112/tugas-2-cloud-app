@@ -27,7 +27,7 @@ async function getContainerOwner(containerId) {
 }
 
 wss.on('connection', async (ws, req) => {
-  console.log('New WebSocket connection from', req.socket.remoteAddress, 'URL:', req.url)
+  console.log('[WS] New connection from', req.socket.remoteAddress, 'URL:', req.url)
   const url = new URL(req.url, 'http://localhost')
   const pathParts = url.pathname.split('/')
   const containerId = pathParts[pathParts.length - 1]
@@ -61,7 +61,7 @@ wss.on('connection', async (ws, req) => {
     const info = await container.inspect()
     const imageLabel = info.Config.Labels?.image || ''
     const shell = imageLabel.includes('alpine') ? '/bin/sh' : '/bin/bash'
-    console.log('Starting exec for container', containerId, 'user', decoded.username, 'shell', shell)
+    console.log('[WS] Starting exec for container', containerId, 'user', decoded.username, 'shell', shell)
 
     exec = await container.exec({
       Cmd: [shell, '-l'],
@@ -75,19 +75,24 @@ wss.on('connection', async (ws, req) => {
       hijack: true,
       stdin: true,
     })
-    console.log('Exec stream started successfully for container', containerId)
+    console.log('[WS] Exec stream started for container', containerId)
 
-    // Handle output from container -> websocket
+    // Handle output from container -> websocket (convert Buffer to string)
     stream.on('data', (data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data)
+        ws.send(data.toString('utf-8'))
       }
     })
 
     stream.on('end', () => {
+      console.log('[WS] Exec stream ended for container', containerId)
       if (ws.readyState === WebSocket.OPEN) {
         ws.close()
       }
+    })
+
+    stream.on('error', (err) => {
+      console.error('[WS] Stream error for container', containerId, ':', err.message)
     })
 
     // Handle input from websocket -> container
@@ -108,19 +113,20 @@ wss.on('connection', async (ws, req) => {
     })
 
     ws.on('close', () => {
+      console.log('[WS] Connection closed for container', containerId)
       if (stream) {
         stream.destroy()
       }
     })
 
     ws.on('error', (err) => {
-      console.error('WebSocket error:', err)
+      console.error('[WS] WebSocket error for container', containerId, ':', err)
       if (stream) {
         stream.destroy()
       }
     })
   } catch (err) {
-    console.error('Exec error for container', containerId, ':', err)
+    console.error('[WS] Exec error for container', containerId, ':', err)
     ws.send(JSON.stringify({ type: 'error', message: err.message || 'Failed to start terminal' }))
     ws.close()
   }

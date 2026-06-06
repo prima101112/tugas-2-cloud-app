@@ -71,7 +71,7 @@ export default function Terminal({ containerId, token }: TerminalProps) {
         }
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${protocol}//${window.location.host}/ws/ssh/${containerId}?token=${token}`
+        const wsUrl = `${protocol}://${window.location.host}/ws/ssh/${containerId}?token=${token}`
         ws = new WebSocket(wsUrl)
 
         ws.onopen = () => {
@@ -84,22 +84,8 @@ export default function Terminal({ containerId, token }: TerminalProps) {
 
         ws.onmessage = (event) => {
           if (closed) return
-          if (typeof event.data === 'string') {
-            try {
-              const msg = JSON.parse(event.data)
-              if (msg.type === 'error') {
-                term.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`)
-                return
-              }
-            } catch {
-              // not JSON, treat as terminal data
-            }
-            term.write(event.data)
-          } else if (event.data instanceof Blob) {
-            const reader = new FileReader()
-            reader.onload = () => term.write(reader.result)
-            reader.readAsText(event.data)
-          }
+          // Server now sends text only
+          term.write(event.data)
         }
 
         ws.onclose = () => {
@@ -109,7 +95,7 @@ export default function Terminal({ containerId, token }: TerminalProps) {
 
         ws.onerror = () => {
           if (closed) return
-          term.writeln('\r\n\x1b[31m[WebSocket error — check server logs]\x1b[0m')
+          term.writeln('\r\n\x1b[31m[Connection error]\x1b[0m')
         }
 
         term.onData((data: string) => {
@@ -154,10 +140,5 @@ export default function Terminal({ containerId, token }: TerminalProps) {
     )
   }
 
-  return (
-    <div
-      ref={terminalRef}
-      className="w-full h-full rounded-xl overflow-hidden"
-    />
-  )
+  return <div ref={terminalRef} className="w-full h-full rounded-xl overflow-hidden" />
 }
