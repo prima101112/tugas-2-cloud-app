@@ -34,8 +34,10 @@ export default function HomePage() {
   const [showTerminalToken, setShowTerminalToken] = useState<string | null>(null)
   const [showTerminalName, setShowTerminalName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const t = localStorage.getItem('token')
     if (t) setToken(t)
   }, [])
@@ -225,6 +227,14 @@ export default function HomePage() {
   const total = machines.length
   const running = machines.filter((m) => m.status === 'running').length
   const stopped = machines.filter((m) => m.status !== 'running').length
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-dark-950">
+        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+      </div>
+    )
+  }
 
   if (!token) {
     return (
