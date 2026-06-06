@@ -27,6 +27,7 @@ async function getContainerOwner(containerId) {
 }
 
 wss.on('connection', async (ws, req) => {
+  console.log('New WebSocket connection from', req.socket.remoteAddress, 'URL:', req.url)
   const url = new URL(req.url, 'http://localhost')
   const pathParts = url.pathname.split('/')
   const containerId = pathParts[pathParts.length - 1]
@@ -60,6 +61,7 @@ wss.on('connection', async (ws, req) => {
     const info = await container.inspect()
     const imageLabel = info.Config.Labels?.image || ''
     const shell = imageLabel.includes('alpine') ? '/bin/sh' : '/bin/bash'
+    console.log('Starting exec for container', containerId, 'user', decoded.username, 'shell', shell)
 
     exec = await container.exec({
       Cmd: [shell, '-l'],
@@ -73,6 +75,7 @@ wss.on('connection', async (ws, req) => {
       hijack: true,
       stdin: true,
     })
+    console.log('Exec stream started successfully for container', containerId)
 
     // Handle output from container -> websocket
     stream.on('data', (data) => {
@@ -117,7 +120,7 @@ wss.on('connection', async (ws, req) => {
       }
     })
   } catch (err) {
-    console.error('Exec error:', err)
+    console.error('Exec error for container', containerId, ':', err)
     ws.send(JSON.stringify({ type: 'error', message: err.message || 'Failed to start terminal' }))
     ws.close()
   }

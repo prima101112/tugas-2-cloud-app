@@ -1,0 +1,22 @@
+http:
+  routers:
+    ws-router:
+      rule: "PathPrefix(`/ws`)"
+      service: ssh-svc
+      entryPoints: [web]
+      priority: 20
+    nextjs-router:
+      rule: "PathPrefix(`/`)"
+      service: nextjs-svc
+      entryPoints: [web]
+      priority: 1
+
+  services:
+    ssh-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3000"
+    nextjs-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3001"

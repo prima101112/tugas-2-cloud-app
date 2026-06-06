@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import styles from './page.module.css'
+import Terminal from '../components/Terminal'
 
 interface Machine {
   id: string
@@ -25,6 +27,9 @@ export default function HomePage() {
   const [logs, setLogs] = useState<Record<string, string>>({})
   const [showLogs, setShowLogs] = useState<Record<string, boolean>>({})
   const [error, setError] = useState('')
+  const [showTerminalId, setShowTerminalId] = useState<string | null>(null)
+  const [showTerminalToken, setShowTerminalToken] = useState<string | null>(null)
+  const [showTerminalName, setShowTerminalName] = useState<string>('')
 
   useEffect(() => {
     const t = localStorage.getItem('token')
@@ -191,177 +196,280 @@ export default function HomePage() {
     }
   }
 
+  function openTerminal(machine: Machine) {
+    if (!token) return
+    setShowTerminalId(machine.id)
+    setShowTerminalToken(token)
+    setShowTerminalName(machine.name)
+  }
+
+  function closeTerminal() {
+    setShowTerminalId(null)
+    setShowTerminalToken(null)
+    setShowTerminalName('')
+  }
+
+  const total = machines.length
+  const running = machines.filter((m) => m.status === 'running').length
+  const stopped = machines.filter((m) => m.status !== 'running').length
+
   if (!token) {
     return (
-      <div style={{ maxWidth: 400, margin: '100px auto', padding: 24, border: '1px solid #ccc', borderRadius: 8 }}>
-        <h1 style={{ marginBottom: 16 }}>Mini Cloud Login</h1>
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: 12 }}>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={{ width: '100%', padding: 8, fontSize: 16 }}
-            />
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ width: '100%', padding: 8, fontSize: 16 }}
-            />
-          </div>
-          {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
-          <button type="submit" style={{ width: '100%', padding: 10, fontSize: 16 }}>
-            Login
-          </button>
-        </form>
-        <p style={{ marginTop: 16, fontSize: 12, color: '#666' }}>
-          Demo users: admin/1234, alice/1234, bob/1234
-        </p>
+      <div className={styles.loginPage}>
+        <div className={styles.loginCard}>
+          <div className={styles.loginTitle}>Mini Cloud</div>
+          <form onSubmit={handleLogin}>
+            <div className={styles.formGroup}>
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={styles.input}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={styles.input}
+                required
+              />
+            </div>
+            {error && <div className={`${styles.formError} ${styles.mb1}`}>{error}</div>}
+            <button type="submit" className={`${styles.btn} ${styles.btnPrimary} ${styles.wFull}`}>
+              Login
+            </button>
+          </form>
+          <p className={styles.loginHint}>Demo users: admin/1234, alice/1234, bob/1234</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1>Mini Cloud Dashboard</h1>
-        <button onClick={handleLogout}>Logout</button>
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <div className={styles.logo}>Mini Cloud</div>
+        <button className={styles.logoutBtn} onClick={handleLogout}>
+          Logout
+        </button>
+      </header>
+
+      <div className={styles.statsRow}>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Total Machines</div>
+          <div className={styles.statValue}>{total}</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Running</div>
+          <div className={`${styles.statValue} ${styles.statValueSuccess}`}>
+            {running}
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Stopped</div>
+          <div className={`${styles.statValue} ${styles.statValueDanger}`}>
+            {stopped}
+          </div>
+        </div>
       </div>
 
-      <button onClick={() => setShowCreate(true)} style={{ marginBottom: 16 }}>
+      <button className={`${styles.btn} ${styles.btnPrimary} ${styles.createBtn}`} onClick={() => setShowCreate(true)}>
         + Create Machine
       </button>
 
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Image</th>
+              <th>Status</th>
+              <th>IP</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {machines.map((m) => (
+              <tr key={m.id}>
+                <td>{m.name}</td>
+                <td>{m.image}</td>
+                <td>
+                  <span
+                    className={`${styles.badge} ${
+                      m.status === 'running'
+                        ? styles.badgeRunning
+                        : m.status === 'stopped'
+                        ? styles.badgeStopped
+                        : styles.badgeOther
+                    }`}
+                  >
+                    {m.status}
+                  </span>
+                </td>
+                <td>{m.ip || '-'}</td>
+                <td>
+                  <div className={styles.actionGroup}>
+                    {m.status !== 'running' && (
+                      <button className={`${styles.btn} ${styles.btnSuccess} ${styles.btnSm}`} onClick={() => handleAction(m.id, 'start')}>
+                        Start
+                      </button>
+                    )}
+                    {m.status === 'running' && (
+                      <button className={`${styles.btn} ${styles.btnDanger} ${styles.btnSm}`} onClick={() => handleAction(m.id, 'stop')}>
+                        Stop
+                      </button>
+                    )}
+                    <button className={`${styles.btn} ${styles.btnDanger} ${styles.btnSm}`} onClick={() => handleDelete(m.id)}>
+                      Delete
+                    </button>
+                    <button className={`${styles.btn} ${styles.btnSm}`} onClick={() => openTerminal(m)}>
+                      Terminal
+                    </button>
+                    <button className={`${styles.btn} ${styles.btnSm}`} onClick={() => setShowExpose(m.id)}>
+                      Expose
+                    </button>
+                    <button className={`${styles.btn} ${styles.btnSm}`} onClick={() => toggleLogs(m.id)}>
+                      Logs
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {machines.length === 0 && (
+              <tr>
+                <td colSpan={5} className={styles.emptyCell}>
+                  No machines. Create one to get started.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {Object.entries(showLogs).map(([id, showing]) =>
+        showing ? (
+          <div key={id} className={styles.logsPanel}>
+            <div className={styles.logsHeader}>
+              <span>Logs: {machines.find((m) => m.id === id)?.name}</span>
+              <button className={styles.modalClose} onClick={() => toggleLogs(id)}>
+                ×
+              </button>
+            </div>
+            <pre className={styles.logsPre}>{logs[id] || 'Loading...'}</pre>
+          </div>
+        ) : null
+      )}
+
       {showCreate && (
-        <div style={{ border: '1px solid #ccc', padding: 16, marginBottom: 16, borderRadius: 8 }}>
-          <h3>Create New Machine</h3>
-          <form onSubmit={handleCreate}>
-            <div style={{ marginBottom: 12 }}>
-              <input
-                type="text"
-                placeholder="Machine name"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                style={{ padding: 8, fontSize: 16, width: 300 }}
-                required
-              />
+        <div className={styles.modalOverlay} onClick={() => setShowCreate(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Create New Machine</h3>
+              <button className={styles.modalClose} onClick={() => setShowCreate(false)}>
+                ×
+              </button>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <select
-                value={createImage}
-                onChange={(e) => setCreateImage(e.target.value)}
-                style={{ padding: 8, fontSize: 16, width: 300 }}
-              >
-                <option value="ubuntu:22.04">ubuntu:22.04</option>
-                <option value="debian:12">debian:12</option>
-                <option value="alpine">alpine</option>
-              </select>
-            </div>
-            <button type="submit" style={{ marginRight: 8 }}>Create</button>
-            <button type="button" onClick={() => setShowCreate(false)}>Cancel</button>
-          </form>
+            <form onSubmit={handleCreate}>
+              <div className={styles.modalBody}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Machine name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. web-server"
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Image</label>
+                  <select value={createImage} onChange={(e) => setCreateImage(e.target.value)} className={styles.select}>
+                    <option value="ubuntu:22.04">ubuntu:22.04</option>
+                    <option value="debian:12">debian:12</option>
+                    <option value="alpine">alpine</option>
+                  </select>
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.btn} onClick={() => setShowCreate(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       {showExpose && (
-        <div style={{ border: '1px solid #ccc', padding: 16, marginBottom: 16, borderRadius: 8 }}>
-          <h3>Expose Port</h3>
-          <form onSubmit={handleExpose}>
-            <div style={{ marginBottom: 12 }}>
-              <input
-                type="number"
-                placeholder="Port number (e.g. 8080)"
-                value={exposePort}
-                onChange={(e) => setExposePort(e.target.value)}
-                style={{ padding: 8, fontSize: 16, width: 300 }}
-                required
-              />
+        <div className={styles.modalOverlay} onClick={() => { setShowExpose(null); setExposeResult(''); setExposePort('') }}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Expose Port</h3>
+              <button
+                className={styles.modalClose}
+                onClick={() => { setShowExpose(null); setExposeResult(''); setExposePort('') }}
+              >
+                ×
+              </button>
             </div>
-            <button type="submit" style={{ marginRight: 8 }}>Expose</button>
-            <button type="button" onClick={() => { setShowExpose(null); setExposeResult(''); setExposePort('') }}>Cancel</button>
-            {exposeResult && (
-              <div style={{ marginTop: 12, padding: 8, background: '#e8f5e9' }}>
-                Exposed at: <code>{exposeResult}</code>
+            <form onSubmit={handleExpose}>
+              <div className={styles.modalBody}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Port number</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 8080"
+                    value={exposePort}
+                    onChange={(e) => setExposePort(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+                {exposeResult && (
+                  <div className={styles.resultBox}>
+                    Exposed at: <code>{exposeResult}</code>
+                  </div>
+                )}
               </div>
-            )}
-          </form>
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={styles.btn}
+                  onClick={() => { setShowExpose(null); setExposeResult(''); setExposePort('') }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Expose
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: '#f5f5f5' }}>
-            <th style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #ddd' }}>Name</th>
-            <th style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #ddd' }}>Image</th>
-            <th style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-            <th style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #ddd' }}>IP</th>
-            <th style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #ddd' }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {machines.map((m) => (
-            <tr key={m.id}>
-              <td style={{ padding: 12, borderBottom: '1px solid #ddd' }}>{m.name}</td>
-              <td style={{ padding: 12, borderBottom: '1px solid #ddd' }}>{m.image}</td>
-              <td style={{ padding: 12, borderBottom: '1px solid #ddd' }}>
-                <span style={{
-                  padding: '4px 8px',
-                  borderRadius: 4,
-                  background: m.status === 'running' ? '#e8f5e9' : '#ffebee',
-                  color: m.status === 'running' ? '#2e7d32' : '#c62828',
-                }}>
-                  {m.status}
-                </span>
-              </td>
-              <td style={{ padding: 12, borderBottom: '1px solid #ddd' }}>{m.ip || '-'}</td>
-              <td style={{ padding: 12, borderBottom: '1px solid #ddd' }}>
-                {m.status !== 'running' && (
-                  <button onClick={() => handleAction(m.id, 'start')} style={{ marginRight: 4 }}>Start</button>
-                )}
-                {m.status === 'running' && (
-                  <button onClick={() => handleAction(m.id, 'stop')} style={{ marginRight: 4 }}>Stop</button>
-                )}
-                <button onClick={() => handleDelete(m.id)} style={{ marginRight: 4 }}>Delete</button>
-                <a
-                  href={`/terminal?id=${m.id}&token=${token}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ marginRight: 4 }}
-                >
-                  <button>Terminal</button>
-                </a>
-                <button onClick={() => setShowExpose(m.id)} style={{ marginRight: 4 }}>Expose</button>
-                <button onClick={() => toggleLogs(m.id)}>Logs</button>
-              </td>
-            </tr>
-          ))}
-          {machines.length === 0 && (
-            <tr>
-              <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#999' }}>
-                No machines. Create one to get started.
-              </td>
-            </tr>
+      <div className={`${styles.terminalPanel} ${showTerminalId ? styles.terminalPanelOpen : ''}`}>
+        <div className={styles.terminalHeader}>
+          <span className={styles.terminalTitle}>Terminal: {showTerminalName}</span>
+          <button className={styles.modalClose} onClick={closeTerminal}>
+            ×
+          </button>
+        </div>
+        <div className={styles.terminalBody}>
+          {showTerminalId && showTerminalToken && (
+            <Terminal containerId={showTerminalId} token={showTerminalToken} />
           )}
-        </tbody>
-      </table>
-
-      {Object.entries(showLogs).map(([id, showing]) =>
-        showing ? (
-          <div key={id} style={{ marginTop: 16, border: '1px solid #ddd', borderRadius: 4 }}>
-            <div style={{ padding: 8, background: '#f5f5f5', fontWeight: 'bold' }}>
-              Logs: {machines.find((m) => m.id === id)?.name}
-            </div>
-            <pre style={{ padding: 12, maxHeight: 300, overflow: 'auto', background: '#1e1e1e', color: '#ddd', margin: 0, fontSize: 12 }}>
-              {logs[id] || 'Loading...'}
-            </pre>
-          </div>
-        ) : null
-      )}
+        </div>
+      </div>
     </div>
   )
 }
