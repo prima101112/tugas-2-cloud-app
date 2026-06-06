@@ -26,6 +26,28 @@ async function getContainerOwner(containerId) {
   }
 }
 
+/**
+ * Docker exec stream demultiplexer.
+ * Format: [type(1 byte), padding(3 bytes), size(4 bytes big-endian), payload(size bytes)]
+ * type: 0=stdin, 1=stdout, 2=stderr
+ */
+function demuxStream(stream, onPayload) {
+  let buffer = Buffer.alloc(0)
+
+  stream.on('data', (chunk) => {
+    buffer = Buffer.concat([buffer, chunk])
+
+    while (buffer.length >= 8) {
+      const size = buffer.readUInt32BE(4)
+      if (buffer.length < 8 + size) break
+
+      const payload = buffer.slice(8, 8 + size)
+      onPayload(payload)
+      buffer = buffer.slice(8 + size)
+    }
+  })
+}
+
 wss.on('connection', async (ws, req) => {
   console.log('[WS] New connection from', req.socket.remoteAddress, 'URL:', req.url)
   const url = new URL(req.url, 'http://localhost')
@@ -77,10 +99,10 @@ wss.on('connection', async (ws, req) => {
     })
     console.log('[WS] Exec stream started for container', containerId)
 
-    // Handle output from container -> websocket (convert Buffer to string)
-    stream.on('data', (data) => {
+    // Demultiplex docker stream and send clean payload to websocket
+    demuxStream(stream, (payload) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data.toString('utf-8'))
+        ws.send(payload.toString('utf-8'))
       }
     })
 
