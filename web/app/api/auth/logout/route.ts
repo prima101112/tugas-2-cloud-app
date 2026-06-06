@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { SESSIONS, getAuthUser } from '@/lib/auth'
+import { revokeToken, getAuthUser } from '@/lib/auth'
 
 export async function POST(req: Request) {
   const user = getAuthUser(req)
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
 
   const auth = req.headers.get('authorization')
   if (auth?.startsWith('Bearer ')) {
-    SESSIONS.delete(auth.slice(7))
+    revokeToken(auth.slice(7))
   }
 
   return NextResponse.json({ success: true })

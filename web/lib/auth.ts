@@ -8,23 +8,25 @@ export const USERS: Record<string, string> = {
   bob: '1234',
 }
 
-export const SESSIONS = new Map<string, string>() // token -> username
+// Token denylist for logout (in-memory, cleared on server restart)
+export const REVOKED = new Set<string>()
 
 export function generateToken(username: string): string {
-  const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '24h' })
-  SESSIONS.set(token, username)
-  return token
+  return jwt.sign({ username }, JWT_SECRET, { expiresIn: '24h' })
 }
 
 export function verifyToken(token: string): { username: string } | null {
   try {
-    if (!SESSIONS.has(token)) return null
+    if (REVOKED.has(token)) return null
     const decoded = jwt.verify(token, JWT_SECRET) as { username: string }
     return decoded
   } catch {
-    SESSIONS.delete(token)
     return null
   }
+}
+
+export function revokeToken(token: string) {
+  REVOKED.add(token)
 }
 
 export function getAuthUser(req: Request): { username: string } | null {
