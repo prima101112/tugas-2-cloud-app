@@ -70,8 +70,10 @@ export default function Terminal({ containerId, token }: TerminalProps) {
           fitAddon.fit()
         }
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${protocol}://${window.location.host}/ws/ssh/${containerId}?token=${token}`
+        // Hardcode ws:// to avoid any template literal issues
+        const host = window.location.host
+        const wsUrl = 'ws://' + host + '/ws/ssh/' + containerId + '?token=' + token
+        console.log('[Terminal] URL:', wsUrl)
         ws = new WebSocket(wsUrl)
 
         ws.onopen = () => {
@@ -84,7 +86,6 @@ export default function Terminal({ containerId, token }: TerminalProps) {
 
         ws.onmessage = (event) => {
           if (closed) return
-          // Server now sends text only
           term.write(event.data)
         }
 
